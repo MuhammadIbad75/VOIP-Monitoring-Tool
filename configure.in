@@ -1,0 +1,256 @@
+#                                               -*- Autoconf -*-
+# Process this file with autoconf to produce a configure script.
+
+AC_PREREQ([2.67])
+AC_INIT([voipmonitor], [VERSION], [support@voipmonitor.org])
+AC_CONFIG_SRCDIR([voipmonitor.cpp])
+AC_CONFIG_HEADERS([config.h])
+
+# test platform
+PLATFORM=`uname`
+
+# Checks for programs.
+AC_PROG_CXX
+AC_PROG_CC
+AC_PROG_INSTALL
+AC_PROG_MAKE_SET
+
+LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib"
+LDFLAGS="$LDFLAGS -L/usr/local/lib"
+
+# Checks for libraries.
+# FIXME: Replace `main' with a function in `-lc':
+AC_CHECK_LIB([c], [main])
+# FIXME: Replace `main' with a function in `-lcrypt':
+AC_CHECK_LIB([crypt], [main])
+# FIXME: Replace `main' with a function in `-ldl':
+AC_CHECK_LIB([dl], [main], AC_SUBST([LIBLD],["-ldl"]), AC_MSG_NOTICE([Unable to find libdl. Safe to ignore on FreeBSD as the functionality is provided by libc.]))
+# FIXME: Replace `main' with a function in `-lltdl':
+AC_CHECK_LIB([ltdl], [main])
+# FIXME: Replace `main' with a function in `-lm':
+AC_CHECK_LIB([m], [main])
+# FIXME: Replace `main' with a function in `-lodbc':
+AC_CHECK_LIB([odbc], [main], , AC_MSG_ERROR([Unable to find odbc library. Debian: apt-get install unixodbc-dev. Centos/Redhat: yum install unixODBC-devel]))
+# FIXME: Replace `main' with a function in `-logg':
+AC_CHECK_LIB([ogg], [main], , AC_MSG_ERROR([Unable to find OGG library. Debian: apt-get install libvorbis-dev. Centos/Redhat: yum install libogg-devel libvorbis-devel]))
+# FIXME: Replace `main' with a function in `-lpcap':
+AC_CHECK_LIB([pcap], [main], ,AC_MSG_ERROR([Unable to find libpcap library. Debian: apt-get install libpcap-dev. Centos/Redhat: yum install libpcap-devel]))
+# FIXME: Replace `main' with a function in `-lpthread':
+AC_CHECK_LIB([pthread], [main])
+# FIXME: Replace `main' with a function in `-lrt':
+AC_CHECK_LIB([rt], [main])
+# FIXME: Replace `main' with a function in `-lssl':
+#AC_CHECK_LIB([ssl], [main])
+# FIXME: Replace `main' with a function in `-lvorbis':
+AC_CHECK_LIB([vorbis], [main], ,AC_MSG_ERROR([Unable to find VORBIS library. Debian: apt-get install libvorbis-dev. Centos/Redhat: yum install libogg-devel libvorbis-devel]))
+# FIXME: Replace `main' with a function in `-lvorbisenc':
+AC_CHECK_LIB([vorbisenc], [main], ,AC_MSG_ERROR([Unable to find VORBISENC library. Debian: apt-get install libvorbis-dev. Centos/Redhat: yum install libogg-devel libvorbis-devel]))
+# FIXME: Replace `main' with a function in `-lz':
+AC_CHECK_LIB([snappy], [main], ,AC_MSG_ERROR([Unable to find snappy library. apt-get install libsnappy-dev | yum install snappy-devel.x86_64 | or compile from source: https://snappy.googlecode.com/files/snappy-1.1.0.tar.gz]))
+AC_CHECK_LIB([curl], [main], , AC_MSG_ERROR([Unable to find curl library. apt-get install libcurl4-openssl-dev | yum install libcurl-devel]))
+AC_CHECK_LIB([icuuc], [main], , AC_MSG_ERROR([Unable to find libicuuc library. apt-get install libicu-dev | yum install libicu-devel]))
+
+CURL_CFG='curl-config'
+CURL_VER_MAJOR=`$CURL_CFG --version | cut -d" " -f2 | cut -d"." -f1`
+CURL_VER_MINOR=`$CURL_CFG --version | cut -d" " -f2 | cut -d"." -f2`
+if test -z $CURL_VER_MAJOR || test -z $CURL_VER_MINOR; then
+        AC_MSG_ERROR([Can't get about curl's version. $CURL_CFG binary is needed.])
+fi
+if test $CURL_VER_MAJOR -eq 7 && test $CURL_VER_MINOR -ge 34; then
+	AC_MSG_NOTICE([Curl version is ok ($CURL_VER_MAJOR.$CURL_VER_MINOR).])
+else
+	AC_MSG_ERROR([Bad curl version ($CURL_VER_MAJOR.$CURL_VER_MINOR). Version 7.34 or higher is required.])
+fi
+
+AC_CHECK_LIB([ssh], [ssh_forward_accept], HAVE_LIBSSH=1, AC_MSG_NOTICE([Your libssh is old or missing - cloud feature is disabled. apt-get install libssh-dev | yum install libssh-devel | or compile from source https://red.libssh.org/projects/libssh/files]))
+AC_CHECK_LIB([json], [main], LIBJSON_NAME='json')
+AC_CHECK_LIB([json-c], [main], LIBJSON_NAME='json-c')
+AC_CHECK_LIB([png], [main], HAVE_LIBPNG=1, AC_MSG_WARN([Unable to find libpng library. apt-get install libpng12-dev | yum install libpng-devel]))
+AC_CHECK_LIB([fftw3], [main], HAVE_LIBFFT=1, AC_MSG_WARN([Unable to find libfftw3 library. apt-get install libfftw3-dev | yum install fftw-devel]))
+if test "x$LIBJSON_NAME" = "x"; then
+	AC_MSG_ERROR([Unable to find json(-c) library. apt-get install libjson0-dev | yum install json-c-devel (RPM from EPEL) | pkg install json-c | or compile from source: git clone https://github.com/json-c/json-c.git; cd json-c; sh autogen.sh; ./configure; make; make install;ldconfig])
+else
+	AC_SUBST([LIBJSON_NAME],["$LIBJSON_NAME"])
+fi
+AC_CHECK_DECLS([LN_aes_128_gcm], HAVE_OPENSSL101=1, AC_MSG_WARN([disabling tls - ssl is too old - you need >= 1.0.1]), [[#include <openssl/obj_mac.h>]])
+AC_CHECK_LIB([rrd], [main], , AC_MSG_ERROR([Unable to find librrd library. apt-get install librrd-dev | yum install rrdtool-devel | or compile from source http://oss.oetiker.ch/rrdtool/doc/librrd.en.html]))
+AC_CHECK_LIB([glib-2.0], [main], , AC_MSG_ERROR([Unable to find libglib library. apt-get install  libglib2.0-dev | yum install glib2-devel]))
+AC_CHECK_LIB([xml2], [main], , AC_MSG_ERROR([Unable to find xml2 library. apt-get install libxml2-dev | yum install libxml2-devel]))
+
+AC_ARG_WITH(dpdk-include, [  --with-dpdk-include=PATH path to explicit include files], [
+	TMPDPDK=-I$withval
+	AC_SUBST([DPDKINCLUDE], [$TMPDPDK])
+], [
+])
+AC_ARG_WITH(dpdk-lib, [  --with-dpdk-lib=PATH path to explicit lib files], [
+	TMPDPDKLIB=-L$withval
+	AC_SUBST([DPDKLIBRARY], [$TMPDPDKLIB])
+], [
+])
+# Check for MySQL libraries (or MariaDB)
+AC_MSG_CHECKING(for mysql_config executable)
+AC_ARG_WITH(mysql, [  --with-mysql=PATH path to mysql_config binary or mysql prefix dir], [
+	if test -x $withval -a -f $withval
+	then
+		MYSQL_CONFIG=$withval
+	elif test -x $withval/bin/mysql_config -a -f $withval/bin/mysql_config
+    then
+		MYSQL_CONFIG=$withval/bin/mysql_config
+    fi
+], [
+	if test -x /usr/local/mysql/bin/mysql_config -a -f /usr/local/mysql/bin/mysql_config
+	then
+		MYSQL_CONFIG=/usr/local/mysql/bin/mysql_config
+	elif test -x /usr/bin/mysql_config -a -f /usr/bin/mysql_config
+	then
+		MYSQL_CONFIG=/usr/bin/mysql_config
+	elif test -x /usr/local/bin/mysql_config -a -f /usr/local/bin/mysql_config
+	then
+		MYSQL_CONFIG=/usr/local/bin/mysql_config
+	fi
+])
+if test "x$MYSQL_CONFIG" = "x"
+then
+    AC_MSG_RESULT(not found - apt-get install libmysqlclient-dev)
+    exit 3
+else
+    AC_SUBST([MYSQLCFLAGS],[`$MYSQL_CONFIG --cflags`])
+    MYSQLLDFLAGS=`$MYSQL_CONFIG --libs`
+    LDFLAGS="$LDFLAGS $MYSQLLDFLAGS"
+    AC_SUBST([MYSQLLIB],[$MYSQLLDFLAGS])
+    AC_SUBST([MYSQLINCLUDE],[`$MYSQL_CONFIG --include`])
+    AC_MSG_RESULT($MYSQL_CONFIG)
+fi
+AC_CHECK_LIB([mysqlclient], [main], , AC_MSG_ERROR([Unable to find libmysqlclient. apt-get install libmysqlclient-dev | yum install mysql-devel or yum install mysql-community-devel| pkg install mysql56-client]))
+
+AC_CHECK_LIB([z], [main], , AC_MSG_ERROR([Unable to find libz. apt-get install zlib1g-dev | yum install zlib-devel]))
+AC_CHECK_LIB([lzma], [main], HAVE_LIBLZMA=1, AC_MSG_NOTICE([Unable to find lzma. apt-get install liblzma-dev | yum install xz-devel]))
+AC_CHECK_LIB([lzo2], [main], HAVE_LIBLZO=1, AC_MSG_ERROR([Unable to find lzo. apt-get install liblzo2-dev | yum install lzo-devel]))
+AC_CHECK_LIB([gnutls], [gnutls_init], HAVE_LIBGNUTLS=1, AC_MSG_NOTICE([Unable to find gnutls - disabling SIP TLS decoder. apt-get install gnutls-dev | yum install gnutls-devel]))
+AC_CHECK_LIB([gcrypt], [gcry_check_version], HAVE_LIBGCRYPT=1, AC_MSG_NOTICE([Unable to find libgcrypt - disabling SIP TLS decoder. apt-get install libgcrypt-dev | yum install libgcrypt-devel]))
+AC_CHECK_LIB([tcmalloc_minimal], [tc_malloc], HAVE_LIBTCMALLOC=1, AC_MSG_NOTICE([Unable to find tcmalloc_minimal library which speeds up threads by 10%. The library is optional: apt-get install libgoogle-perftools-dev | yum install gperftools-devel.x86_64 | or compile from source https://code.google.com/p/gperftools/]))
+
+HAVE_LIBPNG_T=no
+if test "x$HAVE_LIBPNG" = "x1"; then 
+	AC_DEFINE([HAVE_LIBPNG], [1], [Define if using liblpng])
+	AC_SUBST([LIBPNG],["-lpng"])
+	HAVE_LIBPNG_T=yes
+fi
+
+HAVE_LIBFFT_T=no
+if test "x$HAVE_LIBFFT" = "x1"; then 
+	AC_DEFINE([HAVE_LIBFFT], [1], [Define if using libfftw3])
+	AC_SUBST([LIBFFT],["-lfftw3"])
+	HAVE_LIBFFT_T=yes
+fi
+
+HAVE_LIBLZMA_T=no
+if test "x$HAVE_LIBLZMA" = "x1"; then 
+	AC_DEFINE([HAVE_LIBLZMA], [1], [Define if using liblzma])
+	AC_SUBST([LIBLZMA],["-llzma"])
+	HAVE_LIBLZMA_T=yes
+fi
+
+HAVE_LIBLZO_T=no
+if test "x$HAVE_LIBLZO" = "x1"; then 
+	AC_DEFINE([HAVE_LIBLZO], [1], [Define if using liblzo])
+	AC_SUBST([LIBLZO],["-llzo2"])
+	HAVE_LIBLZO_T=yes
+fi
+
+HAVE_LIBSSH_T=no
+if test "x$HAVE_LIBSSH" = "x1"; then 
+	AC_DEFINE([HAVE_LIBSSH], [1], [Define if using libss])
+	if test "x$PLATFORM" = "xFreeBSD"; then
+		AC_SUBST([LIBSSH],["-lssh"])
+	else
+		AC_SUBST([LIBSSH],["-lssh -lssh_threads"])
+	fi
+	HAVE_LIBSSH_T=yes
+fi
+
+LIBGNUTLS_T=no
+if test "x$HAVE_LIBGNUTLS" = "x1" && test "x$HAVE_LIBGCRYPT" = "x1"; then
+	AC_DEFINE([HAVE_LIBGNUTLS], [1], [Define if using gnutls])
+	AC_SUBST([LIBGNUTLS],["-lgcrypt -lgnutls"])
+	AC_SUBST([LIBGNUTLSSTATIC],["-lgcrypt -lgnutls -lnettle -lhogweed -lgmp -lgpg-error -lpthread "])
+	LIBGNUTLS_T=yes
+fi
+TCMALLOC_T=no
+if test "x$HAVE_LIBTCMALLOC" = "x1"; then 
+	AC_DEFINE([HAVE_LIBTCMALLOC], [1], [Define if using libtcmalloc])
+	AC_SUBST([LIBTCMALLOC],["-ltcmalloc_minimal"])
+	TCMALLOC_T=yes
+fi
+OPENSSL_T=no
+if test "x$HAVE_OPENSSL101" = "x1"; then 
+	AC_DEFINE([HAVE_OPENSSL101], [1], [Define if using libtcmalloc])
+	OPENSSL_T=yes
+fi
+
+# Checks for header files.
+#AC_FUNC_ALLOCA
+#AC_CHECK_HEADERS([arpa/inet.h fcntl.h inttypes.h limits.h locale.h malloc.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h strings.h sys/param.h sys/socket.h sys/time.h syslog.h unistd.h wchar.h])
+
+# Checks for typedefs, structures, and compiler characteristics.
+#AC_HEADER_STDBOOL
+#AC_C_INLINE
+#AC_TYPE_INT16_T
+#AC_TYPE_INT32_T
+#AC_TYPE_INT64_T
+#AC_TYPE_MODE_T
+#AC_TYPE_OFF_T
+#AC_TYPE_PID_T
+#AC_TYPE_SIZE_T
+#AC_TYPE_UINT16_T
+#AC_TYPE_UINT32_T
+#AC_TYPE_UINT64_T
+#AC_TYPE_UINT8_T
+
+# Checks for library functions.
+#AC_FUNC_ERROR_AT_LINE
+#AC_FUNC_FORK
+#AC_FUNC_FSEEKO
+#AC_FUNC_MALLOC
+#AC_FUNC_REALLOC
+#AC_FUNC_STRNLEN
+#AC_FUNC_STRTOD
+#AC_CHECK_FUNCS([gethostbyname gettimeofday inet_ntoa memmove memset mkdir mkfifo pow select setenv setlocale socket sqrt strcasecmp strchr strdup strerror strncasecmp strndup strstr strtol])
+
+AC_CONFIG_FILES([Makefile
+                 simpleini/Makefile])
+
+
+AC_OUTPUT
+
+
+AC_MSG_NOTICE([
+
+##############################################################
+                                                            
+ __     __   ___ ____                        _ _             
+ \ \   / /__|_ _|  _ \ _ __ ___   ___  _ __ (_) |_ ___  _ __ 
+  \ \ / / _ \| || |_) | '_ ` _ \ / _ \| '_ \| | __/ _ \| '__|
+   \ V / (_) | ||  __/| | | | | | (_) | | | | | || (_) | |   
+    \_/ \___/___|_|   |_| |_| |_|\___/|_| |_|_|\__\___/|_|   
+                                                             
+ 
+                                                             
+
+lzma compression enabled               : $HAVE_LIBLZMA_T
+ssh library enabled (cloud)            : $HAVE_LIBSSH_T
+gnutls library enabled (SIP TLS)       : $LIBGNUTLS_T
+tcmalloc (faster *alloc) lib found     : $TCMALLOC_T
+libpng lib found     		       : $HAVE_LIBPNG_T
+fftw3 lib found     		       : $HAVE_LIBFFT_T
+openssl >= 101 found		       : $OPENSSL_T
+
+shared binary: run make 
+static binary: run make static
+
+check README.*
+
+#############################################################
+
+])
+
